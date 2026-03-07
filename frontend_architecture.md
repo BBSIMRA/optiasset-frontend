@@ -87,6 +87,7 @@ Component: <EmployeesTable />
 - Department
 - Designation
 
+
 Component: <AddEmployeeModal />
 - Create employee
 
