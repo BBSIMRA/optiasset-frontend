@@ -6,8 +6,11 @@ export default function Sidebar({ role }: { role: string }) {
 
   const adminLinks = [
     { name: "Dashboard", path: "/dashboard" },
-    { name: "Manage Inventory", path: "/assets" },
-    { name: "All Users", path: "/users" }
+    { name: "Assets", path: "/assets" },
+    { name: "Departments", path: "/departments" },
+    { name: "Employees", path: "/employees" },
+    { name: "Assignments", path: "/assignments" },
+    { name: "Maintenance", path: "/maintenance" }
   ]
 
   const employeeLinks = [

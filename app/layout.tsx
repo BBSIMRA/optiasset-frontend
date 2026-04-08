@@ -15,19 +15,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "OptiAsset",
-  description: "Asset Management Dashboard",
+  description: "Asset Management System",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           {children}
         </Providers>
