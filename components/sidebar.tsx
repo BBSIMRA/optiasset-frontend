@@ -1,38 +1,52 @@
-"use client"
+"use client";
 
-import Link from "next/link"
+import Link from "next/link";
 
-export default function Sidebar({ role }: { role: string }) {
+type SidebarProps = {
+  role?: string;
+};
 
-  const adminLinks = [
-    { name: "Dashboard", path: "/dashboard" },
-    { name: "Assets", path: "/assets" },
-    { name: "Departments", path: "/departments" },
-    { name: "Employees", path: "/employees" },
-    { name: "Assignments", path: "/assignments" },
-    { name: "Maintenance", path: "/maintenance" }
-  ]
-
-  const employeeLinks = [
-    { name: "Dashboard", path: "/dashboard" },
-    { name: "My Gear", path: "/my-assets" }
-  ]
-
-  const links = role === "Admin" ? adminLinks : employeeLinks
-
+export default function Sidebar({
+  role = "Admin",
+}: SidebarProps) {
   return (
-    <div className="w-64 h-screen bg-gray-900 text-white p-5">
-      <h2 className="text-xl font-bold mb-5">OptiAsset</h2>
+    <div className="w-64 min-h-screen bg-white dark:bg-slate-900 shadow-xl p-5">
 
-      <ul className="space-y-3">
-        {links.map((link) => (
-          <li key={link.name}>
-            <Link href={link.path} className="hover:text-blue-400">
-              {link.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <h1 className="text-2xl font-bold mb-2 text-blue-600">
+        OptiAsset
+      </h1>
+
+      <p className="text-sm text-gray-500 mb-6">
+        {role}
+      </p>
+
+      <nav className="space-y-3">
+
+        <Link href="/dashboard" className="block hover:text-blue-600">
+          Dashboard
+        </Link>
+
+        <Link href="/employees" className="block hover:text-blue-600">
+          Employees
+        </Link>
+
+        <Link href="/departments" className="block hover:text-blue-600">
+          Departments
+        </Link>
+
+        <Link href="/assets" className="block hover:text-blue-600">
+          Assets
+        </Link>
+
+        <Link href="/assignments" className="block hover:text-blue-600">
+          Assignments
+        </Link>
+
+        <Link href="/maintenance" className="block hover:text-blue-600">
+          Maintenance
+        </Link>
+
+      </nav>
     </div>
-  )
+  );
 }

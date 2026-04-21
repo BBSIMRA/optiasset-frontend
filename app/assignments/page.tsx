@@ -1,267 +1,317 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Sidebar from "@/components/sidebar";
-import Navbar from "@/components/navbar";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import {
+  Search,
+  Plus,
+  Trash2,
+  RotateCcw,
+  CheckCircle,
+  XCircle,
+  Sun,
+  Moon,
+} from "lucide-react";
 import {
   getAssignments,
   createAssignment,
   updateAssignment,
   deleteAssignment,
 } from "@/lib/api";
-import { getAssets, getEmployees } from "@/lib/api";
+import RequestAssetModal from "@/components/RequestAssetModal";
+
+// Notification function
+const notify = (msg: string) => alert(msg);
+
+// Define TypeScript interface for assignments
+type Assignment = {
+  assignment_id?: number;
+  id?: number;
+  employee_id: number;
+  asset_id: number;
+  assigned_date?: string;
+  expected_return_date?: string;
+  assignment_status?: string;
+};
 
 export default function AssignmentsPage() {
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [assets, setAssets] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dark, setDark] = useState(true);
+  const [search, setSearch] = useState("");
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentAssignment, setCurrentAssignment] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    asset_id: 0,
-    employee_id: 0,
-    assigned_date: "",
-    return_date: "",
-  });
-
-  const user = {
-    role: "Admin",
-  };
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchData() {
-      const [assignmentsData, assetsData, employeesData] = await Promise.all([
-        getAssignments(),
-        getAssets(),
-        getEmployees(),
-      ]);
+    const theme = localStorage.getItem("theme");
+    setDark(theme !== "light");
 
-      if (assignmentsData) setAssignments(assignmentsData);
-      if (assetsData) setAssets(assetsData);
-      if (employeesData) setEmployees(employeesData);
-      setLoading(false);
-    }
-
-    fetchData();
+    loadAssignments();
   }, []);
 
-  const handleDelete = async (assignmentId: number) => {
-    if (confirm("Are you sure you want to delete this assignment?")) {
-      const result = await deleteAssignment(assignmentId);
-      if (result) {
-        const data = await getAssignments();
-        if (data) {
-          setAssignments(data);
-        }
-      } else {
-        console.error("Failed to delete assignment");
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.asset_id || !formData.employee_id || !formData.assigned_date) {
-      alert("Asset, Employee, and Assigned Date are required");
-      return;
-    }
-
-    let result;
-    if (isEditing && currentAssignment) {
-      result = await updateAssignment(currentAssignment.assignment_id, formData);
-    } else {
-      result = await createAssignment(formData);
-    }
-
-    if (result) {
+  async function loadAssignments() {
+    setLoading(true);
+    try {
       const data = await getAssignments();
-      if (data) {
-        setAssignments(data);
-      }
-      setIsModalOpen(false);
-      setFormData({ asset_id: 0, employee_id: 0, assigned_date: "", return_date: "" });
-      setIsEditing(false);
-      setCurrentAssignment(null);
-    } else {
-      console.error("Failed to save assignment");
+      setAssignments(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load assignments:", error);
+      notify("Failed to load assignments. Please try again later.");
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  const openCreateModal = () => {
-    setIsEditing(false);
-    setCurrentAssignment(null);
-    setFormData({ asset_id: 0, employee_id: 0, assigned_date: "", return_date: "" });
-    setIsModalOpen(true);
-  };
+  async function handleAddAssignment(payload: any) {
+    try {
+      await createAssignment(payload);
+      notify("Assignment added successfully!");
+      setIsModalOpen(false);
+      loadAssignments();
+    } catch (error) {
+      console.error("Failed to add assignment:", error);
+      notify("Failed to add assignment. Please try again later.");
+    }
+  }
 
-  const openEditModal = (assignment: any) => {
-    setIsEditing(true);
-    setCurrentAssignment(assignment);
-    setFormData({
-      asset_id: assignment.asset_id || 0,
-      employee_id: assignment.employee_id || 0,
-      assigned_date: assignment.assigned_date || "",
-      return_date: assignment.return_date || "",
-    });
-    setIsModalOpen(true);
-  };
+  async function handleEditAssignment(id: number, payload: any) {
+    try {
+      await updateAssignment(id, payload);
+      notify("Assignment updated successfully!");
+      setIsModalOpen(false);
+      loadAssignments();
+    } catch (error) {
+      console.error("Failed to update assignment:", error);
+      notify("Failed to update assignment. Please try again later.");
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm("Delete assignment?")) return;
+
+    try {
+      await deleteAssignment(id);
+      notify("Assignment deleted successfully!");
+      loadAssignments();
+    } catch (error) {
+      console.error("Failed to delete assignment:", error);
+      notify("Failed to delete assignment. Please try again later.");
+    }
+  }
+
+  async function approveRequest(id: number) {
+    console.log("approve", id);
+  }
+
+  async function rejectRequest(id: number) {
+    console.log("reject", id);
+  }
+
+  const filteredAssignments = assignments.filter((item) =>
+    `${item.assignment_id || item.id} ${item.employee_id} ${item.asset_id} ${item.assignment_status}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   return (
-    <div className="flex">
-      <Sidebar role={user.role} />
-
-      <div className="flex-1 p-6 bg-gray-100 dark:bg-gray-900 min-h-screen">
-        <Navbar />
-
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-black dark:text-white">
-            Assignments Management
+    <div
+      className={`min-h-screen ${dark ? "bg-gray-900 text-white" : "bg-white text-gray-900"}`}
+    >
+      <div className="flex">
+        {/* Sidebar */}
+        <div
+          className={`w-72 m-4 rounded-3xl p-6 hidden md:block border backdrop-blur-2xl ${
+            dark
+              ? "bg-white/10 border-white/10"
+              : "bg-white/70 border-white"
+          }`}
+        >
+          <h1 className="text-3xl font-bold text-cyan-400 mb-10">
+            OptiAsset
           </h1>
-          <Button onClick={openCreateModal}>Add Assignment</Button>
+
+          <div className="space-y-3">
+            <NavItem href="/dashboard" label="Dashboard" />
+            <NavItem href="/employees" label="Employees" />
+            <NavItem href="/departments" label="Departments" />
+            <NavItem href="/assets" label="Assets" />
+            <NavItem href="/assignments" label="Assignments" active />
+            <NavItem href="/maintenance" label="Maintenance" />
+          </div>
         </div>
 
-        {loading ? (
-          <p className="text-center text-gray-600 dark:text-gray-400">Loading...</p>
-        ) : assignments.length === 0 ? (
-          <p className="text-center text-gray-600 dark:text-gray-400">No assignments found</p>
-        ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Asset Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Employee Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Assigned Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Return Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                {assignments.map((assignment) => (
-                  <tr key={assignment.assignment_id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {assignment.asset_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {assignment.employee_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {assignment.assigned_date}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {assignment.return_date || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {assignment.status || "Active"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(assignment)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(assignment.assignment_id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
+        {/* Main */}
+        <div className="flex-1 p-4 md:p-6">
+          {/* Navbar */}
+          <div
+            className={`rounded-3xl border backdrop-blur-2xl p-6 mb-8 flex justify-between items-center ${
+              dark
+                ? "bg-white/10 border-white/10"
+                : "bg-white/70 border-white"
+            }`}
+          >
+            <div>
+              <h1 className="text-3xl font-bold">Assignments</h1>
+              <p className="opacity-70 mt-1">Manage assignments & requests</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setDark(!dark);
+                  localStorage.setItem("theme", dark ? "light" : "dark");
+                }}
+                className="p-3 rounded-2xl bg-white/10 border border-white/10"
+              >
+                {dark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedAssignment(null);
+                  setIsModalOpen(true);
+                }}
+                className="px-5 py-3 rounded-2xl bg-cyan-500 text-white flex items-center gap-2"
+              >
+                <Plus size={18} />
+                New Assignment
+              </button>
+            </div>
+          </div>
+
+          {/* Modal for Adding/Editing Assignment */}
+          {isModalOpen && (
+            <RequestAssetModal
+              open={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              asset={selectedAssignment}
+            />
+          )}
+
+          {/* Search */}
+          <div
+            className={`rounded-3xl border backdrop-blur-2xl p-4 mb-6 flex items-center gap-3 ${
+              dark
+                ? "bg-white/10 border-white/10"
+                : "bg-white/70 border-white"
+            }`}
+          >
+            <Search size={18} />
+
+            <input
+              placeholder="Search assignments..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent outline-none"
+            />
+          </div>
+
+          {/* Assignments Table */}
+          <div
+            className={`rounded-3xl border backdrop-blur-2xl p-6 ${
+              dark
+                ? "bg-white/10 border-white/10"
+                : "bg-white/70 border-white"
+            }`}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="opacity-70">
+                    <th className="text-left py-3">ID</th>
+                    <th className="text-left py-3">Employee</th>
+                    <th className="text-left py-3">Asset</th>
+                    <th className="text-left py-3">Assigned</th>
+                    <th className="text-left py-3">Return</th>
+                    <th className="text-left py-3">Status</th>
+                    <th className="text-left py-3">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">{isEditing ? "Edit Assignment" : "Add Assignment"}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Asset</label>
-                <select
-                  value={formData.asset_id}
-                  onChange={(e) => setFormData({ ...formData, asset_id: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Select Asset</option>
-                  {assets.map((asset) => (
-                    <option key={asset.asset_id} value={asset.asset_id}>
-                      {asset.asset_name}
-                    </option>
+                <tbody>
+                  {filteredAssignments.map((item) => (
+                    <tr
+                      key={item.assignment_id || item.id}
+                      className="border-t border-white/10"
+                    >
+                      <td className="py-4">
+                        {item.assignment_id || item.id}
+                      </td>
+
+                      <td>#{item.employee_id}</td>
+
+                      <td>#{item.asset_id}</td>
+
+                      <td>{item.assigned_date || "N/A"}</td>
+
+                      <td>{item.expected_return_date || "N/A"}</td>
+
+                      <td>
+                        <StatusBadge
+                          status={item.assignment_status || "Unknown"}
+                        />
+                      </td>
+
+                      <td>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedAssignment(item);
+                              setIsModalOpen(true);
+                            }}
+                            className="p-2 rounded-xl bg-green-500 text-white"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(item.assignment_id || item.id!)}
+                            className="p-2 rounded-xl bg-red-500 text-white"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Employee</label>
-                <select
-                  value={formData.employee_id}
-                  onChange={(e) => setFormData({ ...formData, employee_id: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map((employee) => (
-                    <option key={employee.employee_id} value={employee.employee_id}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Assigned Date</label>
-                <input
-                  type="date"
-                  value={formData.assigned_date}
-                  onChange={(e) => setFormData({ ...formData, assigned_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Return Date</label>
-                <input
-                  type="date"
-                  value={formData.return_date}
-                  onChange={(e) => setFormData({ ...formData, return_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">{isEditing ? "Update" : "Create"}</Button>
-              </div>
-            </form>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
+  );
+}
+
+/* Sidebar */
+function NavItem({ href, label, active }: any) {
+  return (
+    <Link
+      href={href}
+      className={`block px-4 py-3 rounded-2xl transition ${
+        active
+          ? "bg-cyan-500 text-white"
+          : "hover:bg-white/10"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+/* Status Badge */
+function StatusBadge({ status }: any) {
+  const color =
+    status === "Assigned"
+      ? "bg-yellow-500/20 text-yellow-500"
+      : status === "Returned"
+      ? "bg-green-500/20 text-green-500"
+      : "bg-red-500/20 text-red-500";
+
+  return (
+    <span className={`px-3 py-1 rounded-full text-sm ${color}`}>
+      {status}
+    </span>
   );
 }

@@ -1,328 +1,264 @@
-const BASE_URL = "http://127.0.0.1:8000"
+const BASE_URL = "http://127.0.0.1:8001"; // Ensure consistent trailing slashes
 
-export async function getStats() {
+/* -------------------------------- */
+/* COMMON REQUEST HELPER            */
+/* -------------------------------- */
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
   try {
-    const res = await fetch(`${BASE_URL}/stats`)
-    const data = await res.json()
-
-    console.log("API DATA:", data) // 👈 ADD THIS
-
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
-}
-
-export async function getAssets() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assets`)
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
-}
-
-export async function createAsset(assetData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assets`, {
-      method: "POST",
+    const res = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
+        ...(options?.headers || {})
       },
-      body: JSON.stringify(assetData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
-}
+      ...options
+    });
 
-export async function updateAsset(assetId: number, assetData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assets/${assetId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(assetData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
-}
+    const data = await res.json().catch(() => null);
 
-export async function deleteAsset(assetId: number) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assets/${assetId}`, {
-      method: "DELETE",
-    })
-    if (res.ok) {
-      return { message: "Asset deleted" }
+    if (!res.ok) {
+      let message = "Request failed";
+
+      if (typeof data?.detail === "string") {
+        message = data.detail;
+      } else if (Array.isArray(data?.detail)) {
+        message = data.detail[0]?.msg || "Validation error";
+      } else if (data?.message) {
+        message = data.message;
+      }
+
+      throw new Error(message);
     }
-    return null
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
+
+    return data;
+  } catch (error: any) {
+    console.error("API Request Error:", error);
+    throw new Error(error.message || "Network error or server unavailable");
   }
 }
 
-export async function getDepartments() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/departments`)
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
+function asArray<T>(data: any, keys: string[] = []): T[] {
+  if (Array.isArray(data)) return data; // Handle direct list responses
+
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
   }
+
+  return [];
 }
 
-export async function createDepartment(departmentData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/departments`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(departmentData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+/* -------------------------------- */
+/* TYPE DEFINITIONS                 */
+/* -------------------------------- */
+
+export interface Employee {
+  id: number;
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department_id: number;
+  designation: string;
+  employment_status: string;
+  date_of_joining: string;
 }
 
-export async function updateDepartment(departmentId: number, departmentData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/departments/${departmentId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(departmentData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export interface Department {
+  id: number;
+  department_name: string;
 }
 
-export async function deleteDepartment(departmentId: number) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/departments/${departmentId}`, {
-      method: "DELETE",
-    })
-    if (res.ok) {
-      return { message: "Department deleted" }
-    }
-    return null
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export interface Asset {
+  id: number;
+  asset_name: string;
+  asset_type: string;
+  purchase_date: string;
+  warranty_expiry_date: string;
 }
 
-export async function getEmployees() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/employees`)
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export interface Assignment {
+  id: number;
+  asset_id: number;
+  employee_id: number;
+  assigned_date: string;
+  expected_return_date: string;
+  actual_return_date?: string;
+  assignment_status: string;
 }
 
-export async function createEmployee(employeeData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/employees`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(employeeData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export interface Maintenance {
+  id: number;
+  asset_id: number;
+  maintenance_date: string;
+  description: string;
 }
 
-export async function updateEmployee(employeeId: number, employeeData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/employees/${employeeId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(employeeData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export interface Request {
+  id: number;
+  employee_id: number;
+  asset_id: number;
+  reason: string;
+  status: string;
 }
 
-export async function deleteEmployee(employeeId: number) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/employees/${employeeId}`, {
-      method: "DELETE",
-    })
-    if (res.ok) {
-      return { message: "Employee deleted" }
-    }
-    return null
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+/* -------------------------------- */
+/* AUTH                             */
+/* -------------------------------- */
+
+export async function loginUser(payload: {
+  email: string;
+  password: string;
+  role: string;
+}): Promise<{ token: string }> {
+  return request(`${BASE_URL}/api/login/`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function deactivateEmployee(employeeId: number) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/employees/${employeeId}/status`, {
-      method: "PATCH",
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export async function logoutUser(): Promise<{ message: string }> {
+  return request(`${BASE_URL}/api/logout/`, {
+    method: "POST"
+  });
 }
 
-export async function getAssignments() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assignments`)
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+/* -------------------------------- */
+/* DASHBOARD                        */
+/* -------------------------------- */
+
+export async function getStats(): Promise<any> {
+  return request(`${BASE_URL}/stats/`);
 }
 
-export async function createAssignment(assignmentData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assignments`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(assignmentData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+/* -------------------------------- */
+/* EMPLOYEES                        */
+/* -------------------------------- */
+
+export async function getEmployees(): Promise<Employee[]> {
+  return request(`${BASE_URL}/employees/`);
 }
 
-export async function updateAssignment(assignmentId: number, assignmentData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assignments/${assignmentId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(assignmentData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export async function createEmployee(payload: Employee): Promise<Employee> {
+  return request(`${BASE_URL}/employees/`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function deleteAssignment(assignmentId: number) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/assignments/${assignmentId}`, {
-      method: "DELETE",
-    })
-    if (res.ok) {
-      return { message: "Assignment deleted" }
-    }
-    return null
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export async function updateEmployee(id: number, payload: Partial<Employee>): Promise<Employee> {
+  return request(`${BASE_URL}/employees/${id}/`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function getMaintenance() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/maintenance`)
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export async function deleteEmployee(id: number): Promise<{ message: string }> {
+  return request(`${BASE_URL}/employees/${id}/`, {
+    method: "DELETE"
+  });
 }
 
-export async function createMaintenance(maintenanceData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/maintenance`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(maintenanceData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+/* -------------------------------- */
+/* DEPARTMENTS                      */
+/* -------------------------------- */
+
+export async function getDepartments(): Promise<Department[]> {
+  return request(`${BASE_URL}/departments/`);
 }
 
-export async function updateMaintenance(maintenanceId: number, maintenanceData: any) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/maintenance/${maintenanceId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(maintenanceData),
-    })
-    const data = await res.json()
-    return data
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export async function createDepartment(payload: Department): Promise<Department> {
+  return request(`${BASE_URL}/departments/`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function deleteMaintenance(maintenanceId: number) {
-  try {
-    const res = await fetch(`${BASE_URL}/api/maintenance/${maintenanceId}`, {
-      method: "DELETE",
-    })
-    if (res.ok) {
-      return { message: "Maintenance log deleted" }
-    }
-    return null
-  } catch (error) {
-    console.error("FETCH ERROR:", error)
-    return null
-  }
+export async function deleteDepartment(id: number): Promise<{ message: string }> {
+  return request(`${BASE_URL}/departments/${id}/`, {
+    method: "DELETE"
+  });
+}
+
+/* -------------------------------- */
+/* ASSETS                           */
+/* -------------------------------- */
+
+export async function getAssets(): Promise<Asset[]> {
+  return request(`${BASE_URL}/assets/`);
+}
+
+export async function createAsset(payload: Asset): Promise<Asset> {
+  return request(`${BASE_URL}/assets/`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateAsset(id: number, payload: Partial<Asset>): Promise<Asset> {
+  return request(`${BASE_URL}/assets/${id}/`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteAsset(id: number): Promise<{ message: string }> {
+  return request(`${BASE_URL}/assets/${id}/`, {
+    method: "DELETE"
+  });
+}
+
+/* -------------------------------- */
+/* ASSIGNMENTS                      */
+/* -------------------------------- */
+
+export async function getAssignments(): Promise<Assignment[]> {
+  return request(`${BASE_URL}/assignments/`);
+}
+
+export async function createAssignment(payload: Assignment): Promise<Assignment> {
+  return request(`${BASE_URL}/assignments/`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateAssignment(id: number, payload: Partial<Assignment>): Promise<Assignment> {
+  return request(`${BASE_URL}/assignments/${id}/`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteAssignment(id: number): Promise<{ message: string }> {
+  return request(`${BASE_URL}/assignments/${id}/`, {
+    method: "DELETE"
+  });
+}
+
+/* -------------------------------- */
+/* MAINTENANCE                      */
+/* -------------------------------- */
+
+export async function getMaintenanceLogs(): Promise<Maintenance[]> {
+  return request(`${BASE_URL}/maintenance/`);
+}
+
+export async function createMaintenanceLog(payload: Maintenance): Promise<Maintenance> {
+  return request(`${BASE_URL}/maintenance/`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateMaintenanceLog(id: number, payload: Partial<Maintenance>): Promise<Maintenance> {
+  return request(`${BASE_URL}/maintenance/${id}/`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteMaintenanceLog(id: number): Promise<{ message: string }> {
+  return request(`${BASE_URL}/maintenance/${id}/`, {
+    method: "DELETE"
+  });
 }
