@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Users,
   Plus,
   Search,
   Pencil,
@@ -19,6 +18,7 @@ import {
   updateEmployee,
   getDepartments,
   Employee,
+  EmployeeForm,
 } from "@/lib/api";
 
 type Department = {
@@ -31,21 +31,21 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Employee | null>(null);
 
-  const emptyForm = {
+  const emptyForm: EmployeeForm = {
     employee_code: "",
     first_name: "",
     last_name: "",
     email: "",
-    department_id: "",
+    department_id: 0,
     designation: "",
     employment_status: "Active",
     date_of_joining: "",
   };
 
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Employee | null>(null);
-  const [form, setForm] = useState<any>(emptyForm);
+  const [form, setForm] = useState<EmployeeForm>(emptyForm);
 
   useEffect(() => {
     const saved = localStorage.getItem("theme");
@@ -85,47 +85,43 @@ export default function EmployeesPage() {
   }
 
   async function handleSave() {
-  try {
-    const payload = {
-      employee_code: form.employee_code.trim(),
-      first_name: form.first_name.trim(),
-      last_name: form.last_name.trim(),
-      email: form.email.trim(),
+    try {
+      const payload: EmployeeForm = {
+        employee_code: form.employee_code.trim(),
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        email: form.email.trim(),
+        department_id: Number(form.department_id),
+        designation: form.designation.trim(),
+        employment_status: form.employment_status,
+        date_of_joining: form.date_of_joining,
+      };
 
-      // MUST BE INTEGER
-      department_id: Number(form.department_id),
+      if (editing) {
+        await updateEmployee(editing.id, payload);
+      } else {
+        await createEmployee(payload);
+      }
 
-      designation: form.designation.trim(),
-      employment_status: form.employment_status,
-      date_of_joining: form.date_of_joining,
-    };
-
-    if (editing) {
-      await updateEmployee(editing.id || editing.employee_id, payload);
-    } else {
-      await createEmployee(payload);
+      setOpen(false);
+      setEditing(null);
+      setForm(emptyForm);
+      loadEmployees();
+    } catch (error: any) {
+      alert(error.message);
     }
-
-    setOpen(false);
-    setEditing(null);
-    setForm(emptyForm);
-    loadEmployees();
-
-  } catch (error: any) {
-    alert(error.message);
   }
-}
+
+  function getDepartmentName(id: number) {
+    const dep = departments.find((d) => d.id === id);
+    return dep ? dep.department_name : `#${id}`;
+  }
 
   const filtered = employees.filter((emp) =>
     `${emp.first_name} ${emp.last_name} ${emp.email}`
       .toLowerCase()
       .includes(search.toLowerCase())
   );
-
-  function getDepartmentName(id: number) {
-    const dep = departments.find((d) => d.id === id);
-    return dep ? dep.department_name : `#${id}`;
-  }
 
   return (
     <div
@@ -150,7 +146,7 @@ export default function EmployeesPage() {
 
           <div className="space-y-3">
             <NavItem href="/dashboard" label="Dashboard" />
-            <NavItem active href="/employees" label="Employees" />
+            <NavItem href="/employees" label="Employees" active />
             <NavItem href="/departments" label="Departments" />
             <NavItem href="/assets" label="Assets" />
             <NavItem href="/assignments" label="Assignments" />
@@ -170,7 +166,7 @@ export default function EmployeesPage() {
           >
             <div>
               <h1 className="text-3xl font-bold">Employees</h1>
-              <p className={`${dark ? "text-gray-300" : "text-gray-600"}`}>
+              <p className={dark ? "text-gray-300" : "text-gray-600"}>
                 Manage employee records
               </p>
             </div>
@@ -216,6 +212,7 @@ export default function EmployeesPage() {
             }`}
           >
             <Search size={18} />
+
             <input
               placeholder="Search employees..."
               value={search}
@@ -235,7 +232,7 @@ export default function EmployeesPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className={`${dark ? "text-gray-300" : "text-gray-600"}`}>
+                  <tr className={dark ? "text-gray-300" : "text-gray-600"}>
                     <th className="text-left py-3">ID</th>
                     <th className="text-left py-3">Code</th>
                     <th className="text-left py-3">Name</th>
@@ -248,11 +245,13 @@ export default function EmployeesPage() {
                 </thead>
 
                 <tbody>
-                  {filtered.map((emp, index) => (
+                  {filtered.map((emp) => (
                     <tr
-                      key={emp.id || emp.employee_id || emp.email}
+                      key={emp.id}
                       className={`border-t ${
-                        dark ? "border-white/10" : "border-gray-200"
+                        dark
+                          ? "border-white/10"
+                          : "border-gray-200"
                       }`}
                     >
                       <td className="py-4">{emp.id}</td>
@@ -273,28 +272,37 @@ export default function EmployeesPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-  setEditing(emp);
+                              setEditing(emp);
 
-  setForm({
-    employee_code: emp.employee_code || "",
-    first_name: emp.first_name || "",
-    last_name: emp.last_name || "",
-    email: emp.email || "",
-    department_id: String(emp.department_id || ""),
-    designation: emp.designation || "",
-    employment_status: emp.employment_status || "Active",
-    date_of_joining: emp.date_of_joining || "",
-  });
+                              setForm({
+                                employee_code:
+                                  emp.employee_code,
+                                first_name:
+                                  emp.first_name,
+                                last_name:
+                                  emp.last_name,
+                                email: emp.email,
+                                department_id:
+                                  emp.department_id,
+                                designation:
+                                  emp.designation,
+                                employment_status:
+                                  emp.employment_status,
+                                date_of_joining:
+                                  emp.date_of_joining,
+                              });
 
-  setOpen(true);
-}}
+                              setOpen(true);
+                            }}
                             className="p-2 rounded-xl bg-blue-500 text-white"
                           >
                             <Pencil size={16} />
                           </button>
 
                           <button
-                            onClick={() => handleDelete(emp.id || emp.employee_id)}
+                            onClick={() =>
+                              handleDelete(emp.id)
+                            }
                             className="p-2 rounded-xl bg-red-500 text-white"
                           >
                             <Trash2 size={16} />
@@ -306,7 +314,10 @@ export default function EmployeesPage() {
 
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 opacity-70">
+                      <td
+                        colSpan={8}
+                        className="text-center py-8 opacity-70"
+                      >
                         No employees found
                       </td>
                     </tr>
@@ -318,12 +329,14 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* Modal */}
       {open && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
           <div className="bg-white text-black w-full max-w-3xl rounded-3xl p-8">
             <h2 className="text-2xl font-bold mb-6">
-              {editing ? "Edit Employee" : "Add Employee"}
+              {editing
+                ? "Edit Employee"
+                : "Add Employee"}
             </h2>
 
             <div className="grid grid-cols-2 gap-4">
@@ -333,7 +346,8 @@ export default function EmployeesPage() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    employee_code: e.target.value,
+                    employee_code:
+                      e.target.value,
                   })
                 }
                 className="border p-3 rounded-xl"
@@ -357,7 +371,8 @@ export default function EmployeesPage() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    first_name: e.target.value,
+                    first_name:
+                      e.target.value,
                   })
                 }
                 className="border p-3 rounded-xl"
@@ -369,34 +384,39 @@ export default function EmployeesPage() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    last_name: e.target.value,
+                    last_name:
+                      e.target.value,
                   })
                 }
                 className="border p-3 rounded-xl"
               />
 
-              {/* Department Dropdown */}
               <select
                 value={form.department_id}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    department_id: e.target.value,
+                    department_id:
+                      Number(
+                        e.target.value
+                      ),
                   })
                 }
                 className="border p-3 rounded-xl"
               >
-               <option value="">Select Department</option>
+                <option value={0}>
+                  Select Department
+                </option>
 
-{departments.map((d: any, index: number) => (
-  <option
-    key={`${d.id || d.department_id}-${index}`}
-    value={d.id || d.department_id}
-  >
-    {d.department_name} (ID: {d.id || d.department_id})
-  </option>
-))}
-                ))
+                {departments.map((d) => (
+                  <option
+                    key={d.id}
+                    value={d.id}
+                  >
+                    {d.department_name} (ID:{" "}
+                    {d.id})
+                  </option>
+                ))}
               </select>
 
               <input
@@ -405,33 +425,44 @@ export default function EmployeesPage() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    designation: e.target.value,
+                    designation:
+                      e.target.value,
                   })
                 }
                 className="border p-3 rounded-xl"
               />
 
               <select
-                value={form.employment_status}
+                value={
+                  form.employment_status
+                }
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    employment_status: e.target.value,
+                    employment_status:
+                      e.target.value,
                   })
                 }
                 className="border p-3 rounded-xl"
               >
-                <option>Active</option>
-                <option>Inactive</option>
+                <option value="Active">
+                  Active
+                </option>
+                <option value="Inactive">
+                  Inactive
+                </option>
               </select>
 
               <input
                 type="date"
-                value={form.date_of_joining}
+                value={
+                  form.date_of_joining
+                }
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    date_of_joining: e.target.value,
+                    date_of_joining:
+                      e.target.value,
                   })
                 }
                 className="border p-3 rounded-xl"
@@ -440,7 +471,9 @@ export default function EmployeesPage() {
 
             <div className="flex justify-end gap-3 mt-8">
               <button
-                onClick={() => setOpen(false)}
+                onClick={() =>
+                  setOpen(false)
+                }
                 className="px-5 py-3 rounded-xl bg-gray-300"
               >
                 Cancel
@@ -464,7 +497,11 @@ function NavItem({
   href,
   label,
   active,
-}: any) {
+}: {
+  href: string;
+  label: string;
+  active?: boolean;
+}) {
   return (
     <Link
       href={href}
