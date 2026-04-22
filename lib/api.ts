@@ -62,7 +62,6 @@ export interface Employee {
   employment_status: string;
   date_of_joining: string;
 }
-
 export interface Department {
   id: number;
   department_name: string;

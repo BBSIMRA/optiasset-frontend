@@ -17,12 +17,19 @@ import {
   deleteEmployee,
   createEmployee,
   updateEmployee,
+  getDepartments,
   Employee,
 } from "@/lib/api";
+
+type Department = {
+  id: number;
+  department_name: string;
+};
 
 export default function EmployeesPage() {
   const [dark, setDark] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState("");
 
   const emptyForm = {
@@ -30,7 +37,7 @@ export default function EmployeesPage() {
     first_name: "",
     last_name: "",
     email: "",
-    department_id: 1,
+    department_id: "",
     designation: "",
     employment_status: "Active",
     date_of_joining: "",
@@ -43,7 +50,9 @@ export default function EmployeesPage() {
   useEffect(() => {
     const saved = localStorage.getItem("theme");
     setDark(saved !== "light");
+
     loadEmployees();
+    loadDepartments();
   }, []);
 
   async function loadEmployees() {
@@ -55,37 +64,68 @@ export default function EmployeesPage() {
     }
   }
 
+  async function loadDepartments() {
+    try {
+      const data = await getDepartments();
+      setDepartments(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   async function handleDelete(id: number) {
     if (!confirm("Delete employee?")) return;
 
     try {
       await deleteEmployee(id);
       loadEmployees();
-    } catch (error) {
+    } catch {
       alert("Failed to delete");
     }
   }
 
   async function handleSave() {
-    try {
-      if (editing) {
-        await updateEmployee(editing.id, form);
-      } else {
-        await createEmployee(form);
-      }
+  try {
+    const payload = {
+      employee_code: form.employee_code.trim(),
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      email: form.email.trim(),
 
-      setOpen(false);
-      loadEmployees();
-    } catch (error: any) {
-      alert(error.message);
+      // MUST BE INTEGER
+      department_id: Number(form.department_id),
+
+      designation: form.designation.trim(),
+      employment_status: form.employment_status,
+      date_of_joining: form.date_of_joining,
+    };
+
+    if (editing) {
+      await updateEmployee(editing.id || editing.employee_id, payload);
+    } else {
+      await createEmployee(payload);
     }
+
+    setOpen(false);
+    setEditing(null);
+    setForm(emptyForm);
+    loadEmployees();
+
+  } catch (error: any) {
+    alert(error.message);
   }
+}
 
   const filtered = employees.filter((emp) =>
     `${emp.first_name} ${emp.last_name} ${emp.email}`
       .toLowerCase()
       .includes(search.toLowerCase())
   );
+
+  function getDepartmentName(id: number) {
+    const dep = departments.find((d) => d.id === id);
+    return dep ? dep.department_name : `#${id}`;
+  }
 
   return (
     <div
@@ -120,7 +160,7 @@ export default function EmployeesPage() {
 
         {/* Main */}
         <div className="flex-1 p-4">
-          {/* Navbar */}
+          {/* Header */}
           <div
             className={`rounded-3xl p-6 mb-8 border backdrop-blur-xl flex justify-between items-center ${
               dark
@@ -176,7 +216,6 @@ export default function EmployeesPage() {
             }`}
           >
             <Search size={18} />
-
             <input
               placeholder="Search employees..."
               value={search}
@@ -201,6 +240,7 @@ export default function EmployeesPage() {
                     <th className="text-left py-3">Code</th>
                     <th className="text-left py-3">Name</th>
                     <th className="text-left py-3">Email</th>
+                    <th className="text-left py-3">Department</th>
                     <th className="text-left py-3">Designation</th>
                     <th className="text-left py-3">Status</th>
                     <th className="text-left py-3">Actions</th>
@@ -210,11 +250,9 @@ export default function EmployeesPage() {
                 <tbody>
                   {filtered.map((emp, index) => (
                     <tr
-                      key={emp.id ?? emp.employee_code ?? emp.email ?? index} 
+                      key={emp.id || emp.employee_id || emp.email}
                       className={`border-t ${
-                        dark
-                          ? "border-white/10"
-                          : "border-gray-200"
+                        dark ? "border-white/10" : "border-gray-200"
                       }`}
                     >
                       <td className="py-4">{emp.id}</td>
@@ -223,6 +261,7 @@ export default function EmployeesPage() {
                         {emp.first_name} {emp.last_name}
                       </td>
                       <td>{emp.email}</td>
+                      <td>{getDepartmentName(emp.department_id)}</td>
                       <td>{emp.designation}</td>
                       <td>
                         <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-500 text-sm">
@@ -234,17 +273,28 @@ export default function EmployeesPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              setEditing(emp);
-                              setForm(emp);
-                              setOpen(true);
-                            }}
+  setEditing(emp);
+
+  setForm({
+    employee_code: emp.employee_code || "",
+    first_name: emp.first_name || "",
+    last_name: emp.last_name || "",
+    email: emp.email || "",
+    department_id: String(emp.department_id || ""),
+    designation: emp.designation || "",
+    employment_status: emp.employment_status || "Active",
+    date_of_joining: emp.date_of_joining || "",
+  });
+
+  setOpen(true);
+}}
                             className="p-2 rounded-xl bg-blue-500 text-white"
                           >
                             <Pencil size={16} />
                           </button>
 
                           <button
-                            onClick={() => handleDelete(emp.id)}
+                            onClick={() => handleDelete(emp.id || emp.employee_id)}
                             className="p-2 rounded-xl bg-red-500 text-white"
                           >
                             <Trash2 size={16} />
@@ -256,7 +306,7 @@ export default function EmployeesPage() {
 
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 opacity-70">
+                      <td colSpan={8} className="text-center py-8 opacity-70">
                         No employees found
                       </td>
                     </tr>
@@ -268,10 +318,10 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* MODAL */}
       {open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white text-black w-full max-w-2xl rounded-3xl p-8">
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white text-black w-full max-w-3xl rounded-3xl p-8">
             <h2 className="text-2xl font-bold mb-6">
               {editing ? "Edit Employee" : "Add Employee"}
             </h2>
@@ -281,7 +331,10 @@ export default function EmployeesPage() {
                 placeholder="Employee Code"
                 value={form.employee_code}
                 onChange={(e) =>
-                  setForm({ ...form, employee_code: e.target.value })
+                  setForm({
+                    ...form,
+                    employee_code: e.target.value,
+                  })
                 }
                 className="border p-3 rounded-xl"
               />
@@ -290,7 +343,10 @@ export default function EmployeesPage() {
                 placeholder="Email"
                 value={form.email}
                 onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
+                  setForm({
+                    ...form,
+                    email: e.target.value,
+                  })
                 }
                 className="border p-3 rounded-xl"
               />
@@ -299,7 +355,10 @@ export default function EmployeesPage() {
                 placeholder="First Name"
                 value={form.first_name}
                 onChange={(e) =>
-                  setForm({ ...form, first_name: e.target.value })
+                  setForm({
+                    ...form,
+                    first_name: e.target.value,
+                  })
                 }
                 className="border p-3 rounded-xl"
               />
@@ -308,19 +367,63 @@ export default function EmployeesPage() {
                 placeholder="Last Name"
                 value={form.last_name}
                 onChange={(e) =>
-                  setForm({ ...form, last_name: e.target.value })
+                  setForm({
+                    ...form,
+                    last_name: e.target.value,
+                  })
                 }
                 className="border p-3 rounded-xl"
               />
+
+              {/* Department Dropdown */}
+              <select
+                value={form.department_id}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    department_id: e.target.value,
+                  })
+                }
+                className="border p-3 rounded-xl"
+              >
+               <option value="">Select Department</option>
+
+{departments.map((d: any, index: number) => (
+  <option
+    key={`${d.id || d.department_id}-${index}`}
+    value={d.id || d.department_id}
+  >
+    {d.department_name} (ID: {d.id || d.department_id})
+  </option>
+))}
+                ))
+              </select>
 
               <input
                 placeholder="Designation"
                 value={form.designation}
                 onChange={(e) =>
-                  setForm({ ...form, designation: e.target.value })
+                  setForm({
+                    ...form,
+                    designation: e.target.value,
+                  })
                 }
                 className="border p-3 rounded-xl"
               />
+
+              <select
+                value={form.employment_status}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    employment_status: e.target.value,
+                  })
+                }
+                className="border p-3 rounded-xl"
+              >
+                <option>Active</option>
+                <option>Inactive</option>
+              </select>
 
               <input
                 type="date"
@@ -335,10 +438,10 @@ export default function EmployeesPage() {
               />
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3 mt-8">
               <button
                 onClick={() => setOpen(false)}
-                className="px-5 py-3 rounded-xl bg-gray-200"
+                className="px-5 py-3 rounded-xl bg-gray-300"
               >
                 Cancel
               </button>
@@ -357,7 +460,6 @@ export default function EmployeesPage() {
   );
 }
 
-/* Sidebar Item */
 function NavItem({
   href,
   label,
