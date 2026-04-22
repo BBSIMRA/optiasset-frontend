@@ -41,7 +41,6 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 /* TYPE DEFINITIONS                 */
 /* -------------------------------- */
 
-/* FORM TYPE = used for create/edit forms */
 export interface EmployeeForm {
   employee_code: string;
   first_name: string;
@@ -53,7 +52,6 @@ export interface EmployeeForm {
   date_of_joining: string;
 }
 
-/* DATABASE TYPE = includes id */
 export interface Employee extends EmployeeForm {
   id: number;
 }
@@ -71,7 +69,6 @@ export interface Asset {
   warranty_expiry_date: string;
 }
 
-/* FORM TYPE */
 export interface AssignmentForm {
   asset_id: number;
   employee_id: number;
@@ -81,19 +78,16 @@ export interface AssignmentForm {
   assignment_status: string;
 }
 
-/* DATABASE TYPE */
 export interface Assignment extends AssignmentForm {
   id: number;
 }
 
-/* FORM TYPE */
 export interface MaintenanceForm {
   asset_id: number;
   maintenance_date: string;
   description: string;
 }
 
-/* DATABASE TYPE */
 export interface Maintenance extends MaintenanceForm {
   id: number;
 }
@@ -110,19 +104,33 @@ export interface RequestData {
 /* AUTH                             */
 /* -------------------------------- */
 
+/* FIXED LOGIN ROUTE */
 export async function loginUser(payload: {
   email: string;
   password: string;
   role: string;
-}): Promise<{ token: string }> {
-  return request(`${BASE_URL}/api/login/`, {
+}): Promise<any> {
+  return request(`${BASE_URL}/auth/login`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
+/* OPTIONAL SIGNUP ROUTE */
+export async function signupUser(payload: {
+  email: string;
+  password: string;
+  role: string;
+}): Promise<any> {
+  return request(`${BASE_URL}/users/users`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/* OPTIONAL LOGOUT */
 export async function logoutUser(): Promise<{ message: string }> {
-  return request(`${BASE_URL}/api/logout/`, {
+  return request(`${BASE_URL}/auth/logout`, {
     method: "POST",
   });
 }
@@ -143,7 +151,6 @@ export async function getEmployees(): Promise<Employee[]> {
   return request(`${BASE_URL}/employees/`);
 }
 
-/* FIXED: use EmployeeForm instead of Employee */
 export async function createEmployee(
   payload: EmployeeForm
 ): Promise<Employee> {
@@ -153,7 +160,6 @@ export async function createEmployee(
   });
 }
 
-/* FIXED */
 export async function updateEmployee(
   id: number,
   payload: Partial<EmployeeForm>
