@@ -30,10 +30,11 @@ export default function SignupPage() {
 
     try {
       await signupUser({
-        email: email.trim(),
-        password: password.trim(),
-        role,
-      });
+  name: name.trim(),
+  email: email.trim(),
+  password: password.trim(),
+  role,
+});
 
       router.push("/");
     } catch (error: any) {

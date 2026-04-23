@@ -89,10 +89,10 @@ export default function EmployeesPage() {
       const payload: EmployeeForm = {
         employee_code: form.employee_code.trim(),
         first_name: form.first_name.trim(),
-        last_name: form.last_name.trim(),
+        last_name: (form.last_name || "").trim(),
         email: form.email.trim(),
         department_id: Number(form.department_id),
-        designation: form.designation.trim(),
+        designation: (form.designation || "").trim(),
         employment_status: form.employment_status,
         date_of_joining: form.date_of_joining,
       };

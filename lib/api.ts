@@ -38,35 +38,72 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 /* -------------------------------- */
-/* TYPE DEFINITIONS                 */
+/* TYPES                            */
 /* -------------------------------- */
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+  role: string;
+}
+
+export interface SignupPayload {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+}
+
+export interface LoggedInUser {
+  name?: string;
+  email: string;
+  role: string;
+  access_token?: string;
+  token?: string;
+}
 
 export interface EmployeeForm {
   employee_code: string;
   first_name: string;
-  last_name: string;
+  last_name?: string;
   email: string;
   department_id: number;
-  designation: string;
-  employment_status: string;
-  date_of_joining: string;
+  designation?: string;
+  employment_status?: string;
+  date_of_joining?: string;
 }
+
+type ApiEmployee = EmployeeForm & {
+  employee_id: number;
+  created_at?: string;
+};
 
 export interface Employee extends EmployeeForm {
   id: number;
+  employee_id: number;
+  created_at?: string;
 }
+
+type ApiDepartment = {
+  department_id: number;
+  department_name: string;
+  created_at?: string;
+};
 
 export interface Department {
   id: number;
+  department_id: number;
   department_name: string;
+  created_at?: string;
 }
 
 export interface Asset {
   id: number;
+  asset_id?: number;
   asset_name: string;
-  asset_type: string;
-  purchase_date: string;
-  warranty_expiry_date: string;
+  asset_type?: string;
+  purchase_date?: string;
+  warranty_expiry_date?: string;
 }
 
 export interface AssignmentForm {
@@ -101,25 +138,37 @@ export interface RequestData {
 }
 
 /* -------------------------------- */
+/* NORMALIZERS                      */
+/* -------------------------------- */
+
+function normalizeEmployee(item: ApiEmployee): Employee {
+  return {
+    ...item,
+    id: item.employee_id,
+    employee_id: item.employee_id,
+  };
+}
+
+function normalizeDepartment(item: ApiDepartment): Department {
+  return {
+    ...item,
+    id: item.department_id,
+    department_id: item.department_id,
+  };
+}
+
+/* -------------------------------- */
 /* AUTH                             */
 /* -------------------------------- */
 
-export async function loginUser(payload: {
-  email: string;
-  password: string;
-  role: string;
-}): Promise<any> {
+export async function loginUser(payload: LoginPayload): Promise<any> {
   return request(`${BASE_URL}/auth/login`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export async function signupUser(payload: {
-  email: string;
-  password: string;
-  role: string;
-}): Promise<any> {
+export async function signupUser(payload: SignupPayload): Promise<any> {
   return request(`${BASE_URL}/users/users`, {
     method: "POST",
     body: JSON.stringify(payload),
@@ -127,9 +176,11 @@ export async function signupUser(payload: {
 }
 
 export async function logoutUser(): Promise<{ message: string }> {
-  return request(`${BASE_URL}/auth/logout`, {
-    method: "POST",
-  });
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("user");
+  }
+
+  return { message: "Logged out successfully" };
 }
 
 /* -------------------------------- */
@@ -145,32 +196,42 @@ export async function getStats(): Promise<any> {
 /* -------------------------------- */
 
 export async function getEmployees(): Promise<Employee[]> {
-  return request(`${BASE_URL}/employees/`);
+  const data = await request<ApiEmployee[]>(`${BASE_URL}/employees/`);
+  return Array.isArray(data) ? data.map(normalizeEmployee) : [];
+}
+
+export async function getEmployeeById(id: number): Promise<Employee> {
+  const data = await request<ApiEmployee>(`${BASE_URL}/employees/${id}`);
+  return normalizeEmployee(data);
 }
 
 export async function createEmployee(
   payload: EmployeeForm
 ): Promise<Employee> {
-  return request(`${BASE_URL}/employees/`, {
+  const data = await request<ApiEmployee>(`${BASE_URL}/employees/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+  return normalizeEmployee(data);
 }
 
 export async function updateEmployee(
   id: number,
   payload: Partial<EmployeeForm>
 ): Promise<Employee> {
-  return request(`${BASE_URL}/employees/${id}/`, {
+  const data = await request<ApiEmployee>(`${BASE_URL}/employees/${id}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+
+  return normalizeEmployee(data);
 }
 
 export async function deleteEmployee(
   id: number
 ): Promise<{ message: string }> {
-  return request(`${BASE_URL}/employees/${id}/`, {
+  return request(`${BASE_URL}/employees/${id}`, {
     method: "DELETE",
   });
 }
@@ -180,22 +241,25 @@ export async function deleteEmployee(
 /* -------------------------------- */
 
 export async function getDepartments(): Promise<Department[]> {
-  return request(`${BASE_URL}/departments/`);
+  const data = await request<ApiDepartment[]>(`${BASE_URL}/departments/`);
+  return Array.isArray(data) ? data.map(normalizeDepartment) : [];
 }
 
 export async function createDepartment(payload: {
   department_name: string;
 }): Promise<Department> {
-  return request(`${BASE_URL}/departments/`, {
+  const data = await request<ApiDepartment>(`${BASE_URL}/departments/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+  return normalizeDepartment(data);
 }
 
 export async function deleteDepartment(
   id: number
 ): Promise<{ message: string }> {
-  return request(`${BASE_URL}/departments/${id}/`, {
+  return request(`${BASE_URL}/departments/${id}`, {
     method: "DELETE",
   });
 }

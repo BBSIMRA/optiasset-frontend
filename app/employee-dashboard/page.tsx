@@ -1,62 +1,88 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import {
-  LayoutDashboard,
-  Package,
-  AlertTriangle,
-  User,
+  Briefcase,
+  Building2,
+  CalendarDays,
+  IdCard,
   LogOut,
+  Mail,
   Moon,
+  ShieldCheck,
   Sun,
-  Laptop,
-  Send,
+  UserCircle2,
 } from "lucide-react";
 
-import { logoutUser } from "@/lib/api";
+import {
+  Department,
+  Employee,
+  getDepartments,
+  getEmployees,
+  logoutUser,
+} from "@/lib/api";
+
+type StoredUser = {
+  name?: string;
+  email?: string;
+  role?: string;
+  access_token?: string;
+  token?: string;
+};
 
 export default function EmployeeDashboardPage() {
+  const router = useRouter();
+
   const [dark, setDark] = useState(true);
-
-  const [user, setUser] = useState<any>({
-    name: "Employee",
-    email: "employee@company.com",
-    department: "IT",
-    code: "EMP001",
-  });
-
-  const [myAssets] = useState<any[]>([
-    {
-      asset_tag: "LAP-1001",
-      asset_name: "Dell Latitude Laptop",
-      assigned_date: "2026-04-10",
-      status: "Assigned",
-    },
-    {
-      asset_tag: "MON-2031",
-      asset_name: "Samsung Monitor",
-      assigned_date: "2026-04-12",
-      status: "Assigned",
-    },
-  ]);
-
-  const [issue, setIssue] = useState({
-    asset: "",
-    type: "",
-    description: "",
-  });
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<StoredUser | null>(null);
+  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const theme = localStorage.getItem("theme");
-    setDark(theme !== "light");
+    const savedTheme = localStorage.getItem("theme");
+    setDark(savedTheme !== "light");
 
-    const saved = localStorage.getItem("user");
-
-    if (saved) {
-      setUser(JSON.parse(saved));
+    const stored = localStorage.getItem("user");
+    if (!stored) {
+      router.push("/");
+      return;
     }
-  }, []);
+
+    const parsedUser: StoredUser = JSON.parse(stored);
+    setUser(parsedUser);
+
+    loadEmployeeDashboard(parsedUser);
+  }, [router]);
+
+  async function loadEmployeeDashboard(loggedUser: StoredUser) {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [employeesData, departmentsData] = await Promise.all([
+        getEmployees(),
+        getDepartments(),
+      ]);
+
+      setDepartments(departmentsData);
+
+      const matchedEmployee =
+        employeesData.find(
+          (emp) =>
+            emp.email?.toLowerCase() === loggedUser.email?.toLowerCase()
+        ) || null;
+
+      setEmployee(matchedEmployee);
+    } catch (err: any) {
+      setError(err.message || "Failed to load employee dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleLogout() {
     await logoutUser();
@@ -64,14 +90,24 @@ export default function EmployeeDashboardPage() {
     window.location.href = "/";
   }
 
-  function submitIssue() {
-    alert("Issue submitted successfully");
-    setIssue({
-      asset: "",
-      type: "",
-      description: "",
-    });
-  }
+  const welcomeName = useMemo(() => {
+    if (employee) {
+      return `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
+    }
+
+    if (user?.name) return user.name;
+    if (user?.email) return user.email;
+
+    return "Employee";
+  }, [employee, user]);
+
+  const departmentName = useMemo(() => {
+    if (!employee) return "-";
+    const found = departments.find(
+      (dep) => dep.department_id === employee.department_id
+    );
+    return found?.department_name || `Department #${employee.department_id}`;
+  }, [employee, departments]);
 
   return (
     <div
@@ -82,7 +118,6 @@ export default function EmployeeDashboardPage() {
       }`}
     >
       <div className="flex">
-
         {/* Sidebar */}
         <div
           className={`w-72 m-4 rounded-3xl p-6 hidden md:block border backdrop-blur-2xl ${
@@ -96,19 +131,15 @@ export default function EmployeeDashboardPage() {
           </h1>
 
           <div className="space-y-3">
-
             <NavItem
-              icon={<LayoutDashboard size={18} />}
-              label="Dashboard"
               href="/employee-dashboard"
+              label="Dashboard"
               active
             />
-
-            <NavItem
-              icon={<Package size={18} />}
-              label="Available Assets"
-              href="/available-assets"
-            />
+            <NavItem href="/my-assets" label="My Assets" />
+            <NavItem href="/available-assets" label="Available Assets" />
+            <NavItem href="/report-issue" label="Report Issue" />
+            <NavItem href="/profile" label="Profile" />
 
             <button
               onClick={handleLogout}
@@ -117,14 +148,12 @@ export default function EmployeeDashboardPage() {
               <LogOut size={18} />
               Logout
             </button>
-
           </div>
         </div>
 
         {/* Main */}
         <div className="flex-1 p-4 md:p-6">
-
-          {/* Navbar */}
+          {/* Header */}
           <div
             className={`rounded-3xl border backdrop-blur-2xl p-6 mb-8 flex justify-between items-center ${
               dark
@@ -134,21 +163,18 @@ export default function EmployeeDashboardPage() {
           >
             <div>
               <h1 className="text-3xl font-bold">
-                Welcome, {user.name}
+                Welcome, {welcomeName}
               </h1>
-
               <p className="opacity-70 mt-1">
-                Employee Dashboard
+                Here is your employee profile and account information.
               </p>
             </div>
 
             <button
               onClick={() => {
-                setDark(!dark);
-                localStorage.setItem(
-                  "theme",
-                  dark ? "light" : "dark"
-                );
+                const nextDark = !dark;
+                setDark(nextDark);
+                localStorage.setItem("theme", nextDark ? "dark" : "light");
               }}
               className={`p-3 rounded-2xl border ${
                 dark
@@ -160,217 +186,191 @@ export default function EmployeeDashboardPage() {
             </button>
           </div>
 
-          {/* Cards */}
-          <div className="grid md:grid-cols-3 gap-5 mb-8">
+          {/* Loading / Error / Empty */}
+          {loading && (
+            <SectionCard dark={dark}>
+              <p className="opacity-80">Loading employee dashboard...</p>
+            </SectionCard>
+          )}
 
-            <GlassCard dark={dark}>
-              <div className="flex gap-3 items-center">
-                <div className="p-3 rounded-2xl bg-cyan-500 text-white">
-                  <User size={20} />
-                </div>
+          {!loading && error && (
+            <SectionCard dark={dark}>
+              <p className="text-red-400">{error}</p>
+            </SectionCard>
+          )}
 
-                <div>
-                  <p className="text-sm opacity-70">
-                    Employee Code
-                  </p>
+          {!loading && !error && !employee && (
+            <SectionCard dark={dark}>
+              <h2 className="text-2xl font-bold mb-2">Employee Profile</h2>
+              <p className="opacity-80">
+                No employee profile found for this account.
+              </p>
+              <p className="opacity-60 mt-2 text-sm">
+                Please make sure the employee email created by admin matches the
+                email used for login.
+              </p>
+            </SectionCard>
+          )}
 
-                  <h2 className="font-bold text-lg">
-                    {user.code}
-                  </h2>
-                </div>
-              </div>
-            </GlassCard>
-
-            <GlassCard dark={dark}>
-              <div className="flex gap-3 items-center">
-                <div className="p-3 rounded-2xl bg-green-500 text-white">
-                  <Laptop size={20} />
-                </div>
-
-                <div>
-                  <p className="text-sm opacity-70">
-                    My Assets
-                  </p>
-
-                  <h2 className="font-bold text-lg">
-                    {myAssets.length}
-                  </h2>
-                </div>
-              </div>
-            </GlassCard>
-
-            <GlassCard dark={dark}>
-              <div className="flex gap-3 items-center">
-                <div className="p-3 rounded-2xl bg-purple-500 text-white">
-                  <Package size={20} />
-                </div>
-
-                <div>
-                  <p className="text-sm opacity-70">
-                    Department
-                  </p>
-
-                  <h2 className="font-bold text-lg">
-                    {user.department}
-                  </h2>
-                </div>
-              </div>
-            </GlassCard>
-
-          </div>
-
-          {/* Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
-
-            {/* My Assets */}
-            <GlassPanel dark={dark} title="My Assets">
-
-              <div className="space-y-4">
-                {myAssets.map((item, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-2xl p-4 ${
-                      dark
-                        ? "bg-white/5 border border-white/10"
-                        : "bg-white border border-gray-200"
-                    }`}
-                  >
-                    <h3 className="font-semibold">
-                      {item.asset_name}
-                    </h3>
-
-                    <p className="text-sm opacity-70">
-                      {item.asset_tag}
-                    </p>
-
-                    <p className="text-sm mt-2 text-green-500">
-                      {item.status}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-            </GlassPanel>
-
-            {/* Report Issue */}
-            <GlassPanel dark={dark} title="Report Issue">
-
-              <div className="space-y-4">
-
-                <input
-                  placeholder="Asset Tag"
-                  value={issue.asset}
-                  onChange={(e) =>
-                    setIssue({
-                      ...issue,
-                      asset: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 rounded-2xl bg-white/10 border border-white/10 outline-none"
+          {!loading && !error && employee && (
+            <>
+              <div className="grid lg:grid-cols-3 gap-6 mb-8">
+                <InfoCard
+                  dark={dark}
+                  icon={<UserCircle2 size={20} />}
+                  label="Employee Name"
+                  value={`${employee.first_name || ""} ${employee.last_name || ""}`.trim() || "-"}
                 />
-
-                <input
-                  placeholder="Issue Type"
-                  value={issue.type}
-                  onChange={(e) =>
-                    setIssue({
-                      ...issue,
-                      type: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 rounded-2xl bg-white/10 border border-white/10 outline-none"
+                <InfoCard
+                  dark={dark}
+                  icon={<IdCard size={20} />}
+                  label="Employee Code"
+                  value={employee.employee_code || "-"}
                 />
-
-                <textarea
-                  placeholder="Description"
-                  rows={4}
-                  value={issue.description}
-                  onChange={(e) =>
-                    setIssue({
-                      ...issue,
-                      description: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 rounded-2xl bg-white/10 border border-white/10 outline-none"
+                <InfoCard
+                  dark={dark}
+                  icon={<Mail size={20} />}
+                  label="Email"
+                  value={employee.email || "-"}
                 />
-
-                <button
-                  onClick={submitIssue}
-                  className="w-full bg-cyan-500 hover:bg-cyan-600 p-3 rounded-2xl font-semibold flex items-center justify-center gap-2"
-                >
-                  <Send size={18} />
-                  Submit Issue
-                </button>
-
               </div>
 
-            </GlassPanel>
+              <SectionCard dark={dark}>
+                <h2 className="text-2xl font-bold mb-6">Employee Profile</h2>
 
-          </div>
-
+                <div className="grid md:grid-cols-2 gap-5">
+                  <ProfileRow
+                    icon={<IdCard size={18} />}
+                    label="Employee Code"
+                    value={employee.employee_code || "-"}
+                  />
+                  <ProfileRow
+                    icon={<UserCircle2 size={18} />}
+                    label="Name"
+                    value={`${employee.first_name || ""} ${employee.last_name || ""}`.trim() || "-"}
+                  />
+                  <ProfileRow
+                    icon={<Mail size={18} />}
+                    label="Email"
+                    value={employee.email || "-"}
+                  />
+                  <ProfileRow
+                    icon={<Briefcase size={18} />}
+                    label="Designation"
+                    value={employee.designation || "-"}
+                  />
+                  <ProfileRow
+                    icon={<Building2 size={18} />}
+                    label="Department"
+                    value={departmentName}
+                  />
+                  <ProfileRow
+                    icon={<ShieldCheck size={18} />}
+                    label="Employment Status"
+                    value={employee.employment_status || "-"}
+                  />
+                  <ProfileRow
+                    icon={<CalendarDays size={18} />}
+                    label="Date of Joining"
+                    value={employee.date_of_joining || "-"}
+                  />
+                </div>
+              </SectionCard>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-/* Sidebar Item */
-function NavItem({
+function SectionCard({
+  dark,
+  children,
+}: {
+  dark: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`rounded-3xl border backdrop-blur-2xl p-6 ${
+        dark
+          ? "bg-white/10 border-white/10"
+          : "bg-white/70 border-white"
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function InfoCard({
+  dark,
   icon,
   label,
+  value,
+}: {
+  dark: boolean;
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      className={`rounded-3xl border backdrop-blur-2xl p-6 ${
+        dark
+          ? "bg-white/10 border-white/10"
+          : "bg-white/70 border-white"
+      }`}
+    >
+      <div className="flex items-center gap-3 mb-4 text-cyan-400">
+        <div className="p-3 rounded-2xl bg-cyan-500/20">{icon}</div>
+        <span className="font-semibold">{label}</span>
+      </div>
+      <p className="text-lg font-bold break-words">{value}</p>
+    </div>
+  );
+}
+
+function ProfileRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-black/10 border border-white/10 p-4">
+      <div className="flex items-center gap-2 opacity-70 mb-2">
+        {icon}
+        <span className="text-sm">{label}</span>
+      </div>
+      <div className="font-semibold break-words">{value}</div>
+    </div>
+  );
+}
+
+function NavItem({
   href,
+  label,
   active,
-}: any) {
+}: {
+  href: string;
+  label: string;
+  active?: boolean;
+}) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition ${
+      className={`block px-4 py-3 rounded-2xl transition ${
         active
           ? "bg-cyan-500 text-white"
           : "hover:bg-white/10"
       }`}
     >
-      {icon}
       {label}
     </Link>
-  );
-}
-
-function GlassCard({
-  children,
-  dark,
-}: any) {
-  return (
-    <div
-      className={`rounded-3xl p-5 border backdrop-blur-2xl ${
-        dark
-          ? "bg-white/10 border-white/10"
-          : "bg-white/70 border-white"
-      }`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function GlassPanel({
-  title,
-  children,
-  dark,
-}: any) {
-  return (
-    <div
-      className={`rounded-3xl p-6 border backdrop-blur-2xl ${
-        dark
-          ? "bg-white/10 border-white/10"
-          : "bg-white/70 border-white"
-      }`}
-    >
-      <h2 className="text-2xl font-bold mb-5">
-        {title}
-      </h2>
-
-      {children}
-    </div>
   );
 }

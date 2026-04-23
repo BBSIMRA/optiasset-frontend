@@ -16,36 +16,38 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   async function handleLogin() {
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    try {
-      const data = await loginUser({
+  try {
+    const data = await loginUser({
+      email: email.trim(),
+      password: password.trim(),
+      role,
+    });
+
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        name: data?.name || "",
         email: email.trim(),
-        password: password.trim(),
         role,
-      });
+        access_token: data?.access_token || data?.token || "",
+        ...data,
+      })
+    );
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          email: email.trim(),
-          role,
-          ...data,
-        })
-      );
-
-      if (role === "HR") {
-        router.push("/dashboard");
-      } else {
-        router.push("/employee-dashboard");
-      }
-    } catch (error: any) {
-      setError(error.message || "Login failed");
-    } finally {
-      setLoading(false);
+    if (role === "HR") {
+      router.push("/dashboard");
+    } else {
+      router.push("/employee-dashboard");
     }
+  } catch (error: any) {
+    setError(error.message || "Login failed");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 flex items-center justify-center px-4 relative overflow-hidden">
