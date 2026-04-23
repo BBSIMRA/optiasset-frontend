@@ -2,13 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  User,
-  Mail,
-  Lock,
-  Shield,
-  Users,
-} from "lucide-react";
+import { User, Mail, Lock, Shield, Users } from "lucide-react";
+import { signupUser } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,7 +19,6 @@ export default function SignupPage() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-
     setError("");
 
     if (password !== confirmPassword) {
@@ -35,30 +29,15 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-          role,
-        }),
+      await signupUser({
+        email: email.trim(),
+        password: password.trim(),
+        role,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.detail || "Signup failed");
-        setLoading(false);
-        return;
-      }
-
       router.push("/");
-    } catch {
-      setError("Server error");
+    } catch (error: any) {
+      setError(error.message || "Signup failed");
     }
 
     setLoading(false);
@@ -66,37 +45,23 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 flex items-center justify-center px-4 relative overflow-hidden">
-
-      {/* Glow */}
       <div className="absolute top-10 left-10 w-72 h-72 bg-cyan-500/20 blur-[120px] rounded-full" />
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-blue-500/20 blur-[120px] rounded-full" />
 
-      {/* Card */}
       <div className="relative z-10 w-full max-w-md bg-white/10 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl p-8">
-
-        {/* Header */}
         <div className="text-center mb-8">
-
           <div className="w-16 h-16 mx-auto rounded-2xl bg-cyan-500 text-white flex items-center justify-center text-2xl font-bold shadow-xl mb-4">
             O
           </div>
 
-          <h1 className="text-3xl font-bold text-white">
-            Create Account
-          </h1>
+          <h1 className="text-3xl font-bold text-white">Create Account</h1>
 
-          <p className="text-gray-300 mt-2">
-            Join OptiAsset System
-          </p>
-
+          <p className="text-gray-300 mt-2">Join OptiAsset System</p>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
-
-          {/* Name */}
           <div className="flex items-center gap-3 bg-white/10 border border-white/10 rounded-2xl px-4">
             <User size={18} className="text-gray-300" />
-
             <input
               type="text"
               placeholder="Full Name"
@@ -107,9 +72,7 @@ export default function SignupPage() {
             />
           </div>
 
-          {/* Role */}
           <div className="grid grid-cols-2 gap-3">
-
             <button
               type="button"
               onClick={() => setRole("HR")}
@@ -139,13 +102,10 @@ export default function SignupPage() {
                 Employee
               </div>
             </button>
-
           </div>
 
-          {/* Email */}
           <div className="flex items-center gap-3 bg-white/10 border border-white/10 rounded-2xl px-4">
             <Mail size={18} className="text-gray-300" />
-
             <input
               type="email"
               placeholder="Email Address"
@@ -156,10 +116,8 @@ export default function SignupPage() {
             />
           </div>
 
-          {/* Password */}
           <div className="flex items-center gap-3 bg-white/10 border border-white/10 rounded-2xl px-4">
             <Lock size={18} className="text-gray-300" />
-
             <input
               type="password"
               placeholder="Password"
@@ -170,29 +128,20 @@ export default function SignupPage() {
             />
           </div>
 
-          {/* Confirm Password */}
           <div className="flex items-center gap-3 bg-white/10 border border-white/10 rounded-2xl px-4">
             <Lock size={18} className="text-gray-300" />
-
             <input
               type="password"
               placeholder="Confirm Password"
               required
               value={confirmPassword}
-              onChange={(e) =>
-                setConfirmPassword(e.target.value)
-              }
+              onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full bg-transparent p-3 outline-none text-white placeholder-gray-400"
             />
           </div>
 
-          {error && (
-            <p className="text-red-400 text-sm">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -200,10 +149,8 @@ export default function SignupPage() {
           >
             {loading ? "Creating..." : "Create Account"}
           </button>
-
         </form>
 
-        {/* Footer */}
         <p className="text-center text-sm text-gray-300 mt-6">
           Already have an account?{" "}
           <span
@@ -213,7 +160,6 @@ export default function SignupPage() {
             Login
           </span>
         </p>
-
       </div>
     </div>
   );

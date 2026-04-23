@@ -104,7 +104,6 @@ export interface RequestData {
 /* AUTH                             */
 /* -------------------------------- */
 
-/* FIXED LOGIN ROUTE */
 export async function loginUser(payload: {
   email: string;
   password: string;
@@ -116,7 +115,6 @@ export async function loginUser(payload: {
   });
 }
 
-/* OPTIONAL SIGNUP ROUTE */
 export async function signupUser(payload: {
   email: string;
   password: string;
@@ -128,7 +126,6 @@ export async function signupUser(payload: {
   });
 }
 
-/* OPTIONAL LOGOUT */
 export async function logoutUser(): Promise<{ message: string }> {
   return request(`${BASE_URL}/auth/logout`, {
     method: "POST",
