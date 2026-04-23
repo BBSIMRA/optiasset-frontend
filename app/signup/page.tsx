@@ -38,9 +38,9 @@ export default function SignupPage() {
       router.push("/");
     } catch (error: any) {
       setError(error.message || "Signup failed");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
